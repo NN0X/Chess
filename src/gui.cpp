@@ -131,3 +131,28 @@ GLFWwindow* init(const char* title, int width, int height)
 
         return window;
 }
+
+void convertWindowToOpenGL(GLFWwindow* window, double& x, double& y)
+{
+        int w, h;
+        glfwGetFramebufferSize(window, &w, &h);
+
+        double aspectRatio = (double)w / h;
+
+        // convert window coordinates to OpenGL coordinates
+        double xPos = (x / w) * 2.0 - 1.0;
+        double yPos = 1.0 - (y / h) * 2.0;
+        if (w <= h)
+        {
+                xPos *= aspectRatio;
+                yPos /= aspectRatio;
+        }
+        else
+        {
+                xPos /= aspectRatio;
+                yPos *= aspectRatio;
+        }
+
+        x = xPos;
+        y = yPos;
+}

@@ -124,7 +124,6 @@ void drawBoard(const Board& board, const BoardState& boardState)
                 if (type != NONE)
                 {
                         drawTexture(board.squares[i], 1, pieceTextures[type + (boardState.pieces[i].isWhite ? 0 : 6)]);
-                        std::cout << "Drawing piece: " << pieceTextures[type + (boardState.pieces[i].isWhite ? 0 : 6)] << " at " << board.squares[i].pos.x << ", " << board.squares[i].pos.y << "\n";
                 }
         }
         //std::cin.get();
@@ -296,6 +295,62 @@ int awake(GLFWwindow** window)
         return 0;
 }
 
+bool isMovingPiece = false;
+
+double xpos = 0;
+double ypos = 0;
+double prevXpos = 0;
+double prevYpos = 0;
+
+void movePiece(BoardState& boardState, const Board& board)
+{
+        std::cout << "Move piece from " << prevXpos << ", " << prevYpos << " to " << xpos << ", " << ypos << "\n";
+
+        int squareIndex1 = -1;
+        int squareIndex2 = -1;
+        for (int i = 0; i < 64; i++)
+        {
+                if (board.squares[i].in(xpos, ypos))
+                {
+                        squareIndex1 = i;
+                }
+                if (board.squares[i].in(prevXpos, prevYpos))
+                {
+                        squareIndex2 = i;
+                }
+        }
+
+        if (squareIndex1 == -1 || squareIndex2 == -1 || squareIndex1 == squareIndex2)
+                return;
+
+        // TODO: check if the move is legal
+
+        boardState.pieces[squareIndex2] = boardState.pieces[squareIndex1];
+        boardState.pieces[squareIndex1] = {NONE, false, false};
+        boardState.isWhiteTurn = !boardState.isWhiteTurn;
+        boardState.halfMoveClock++;
+}
+
+void processInput(GLFWwindow* window, BoardState& boardState, const Board& board)
+{
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+                glfwSetWindowShouldClose(window, true);
+
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && !isMovingPiece)
+        {
+                glfwGetCursorPos(window, &prevXpos, &prevYpos);
+                convertWindowToOpenGL(window, prevXpos, prevYpos);
+                isMovingPiece = true;
+        }
+        else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE && isMovingPiece)
+        {
+                glfwGetCursorPos(window, &xpos, &ypos);
+                convertWindowToOpenGL(window, xpos, ypos);
+                movePiece(boardState, board);
+                isMovingPiece = false;
+        }
+}
+
 int update(GLFWwindow* window)
 {
         Board board = generateBoard(800, 800, false, {1.f, 1.f, 1.f}, {0.34f, 0.2f, 0.2f});
@@ -311,6 +366,7 @@ int update(GLFWwindow* window)
                 drawBoard(board, boardState);
                 glfwSwapBuffers(window);
 
+                processInput(window, boardState, board);
                 glfwPollEvents();
         }
 
