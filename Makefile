@@ -9,5 +9,6 @@ SRCS = $(shell find $(SRC) -name '*.cpp')
 all:
 	rm -f -r build
 	mkdir build
+	cp -r resources build/
 	$(CXX) $(CFLAGS) $(SRCS) -o build/$(OUT) $(LDFLAGS) 2> build/make.log
 	@echo "Build complete. Executable is located at build/$(OUT)"
