@@ -99,19 +99,20 @@ Board generateBoard(int width, int height, bool isBlackPersp, Color whiteColor, 
         return board;
 }
 
-const std::string pieceTextures[12] = {
-        "resources/pawn_w.bmp",
-        "resources/knight_w.bmp",
-        "resources/bishop_w.bmp",
-        "resources/rook_w.bmp",
-        "resources/queen_w.bmp",
-        "resources/king_w.bmp",
-        "resources/pawn_b.bmp",
-        "resources/knight_b.bmp",
-        "resources/bishop_b.bmp",
-        "resources/rook_b.bmp",
-        "resources/queen_b.bmp",
-        "resources/king_b.bmp"
+const std::string pieceTextures[13] = {
+        "dummy",
+        "resources/white-pawn.png",
+        "resources/white-knight.png",
+        "resources/white-bishop.png",
+        "resources/white-rook.png",
+        "resources/white-queen.png",
+        "resources/white-king.png",
+        "resources/black-pawn.png",
+        "resources/black-knight.png",
+        "resources/black-bishop.png",
+        "resources/black-rook.png",
+        "resources/black-queen.png",
+        "resources/black-king.png"
 };
 
 void drawBoard(const Board& board, const BoardState& boardState)
@@ -119,9 +120,14 @@ void drawBoard(const Board& board, const BoardState& boardState)
         for (int i = 0; i < 64; i++)
         {
                 drawSquare(board.squares[i], 0);
-                if (boardState.pieces[i].type != NONE)
-                        drawTexture(board.squares[i], 1, pieceTextures[boardState.pieces[i].type - 1 + 6 * boardState.pieces[i].isWhite]);
+                int type = boardState.pieces[i].type;
+                if (type != NONE)
+                {
+                        drawTexture(board.squares[i], 1, pieceTextures[type + (boardState.pieces[i].isWhite ? 0 : 6)]);
+                        std::cout << "Drawing piece: " << pieceTextures[type + (boardState.pieces[i].isWhite ? 0 : 6)] << " at " << board.squares[i].pos.x << ", " << board.squares[i].pos.y << "\n";
+                }
         }
+        //std::cin.get();
 }
 
 const std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -135,17 +141,24 @@ int applyFEN(const std::string& fen, BoardState& boardState)
         int fenIndex = 0;
         for (const char& c : fen)
         {
-                if (boardIndex >= 64)
+                if (boardIndex > 63)
                         return -1;
-                if (fenIndex >= fen.size())
+                if (fenIndex > fen.size() - 1)
                         return -1;
                 if (c == ' ')
+                {
+                        fenIndex++;
                         break;
+                }
                 else if (c == '/')
+                {
+                        fenIndex++;
                         continue;
+                }
                 else if (c >= '1' && c <= '8')
                 {
                         boardIndex += c - '0';
+                        fenIndex++;
                         continue;
                 }
                 else if (c == 'R')
@@ -185,7 +198,7 @@ int applyFEN(const std::string& fen, BoardState& boardState)
         if (numKings != 2)
                 return -1;
 
-        if (fenIndex >= fen.size())
+        if (fenIndex > fen.size() - 1)
         {
                 boardState.isWhiteTurn = true;
                 boardState.whiteCanCastleKingside = true;
@@ -285,8 +298,9 @@ int awake(GLFWwindow** window)
 
 int update(GLFWwindow* window)
 {
-        Board board = generateBoard(800, 600, false, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f});
+        Board board = generateBoard(800, 800, false, {1.f, 1.f, 1.f}, {0.34f, 0.2f, 0.2f});
         BoardState boardState;
+        boardState.pieces.fill({NONE, false, false});
         applyFEN(startFEN, boardState);
         printBoardState(boardState);
         while (!glfwWindowShouldClose(window))

@@ -52,6 +52,9 @@ void drawTexture(Vector2f pos, int layer, float width, const std::string& textur
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, texDat);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+        glGenerateMipmap(GL_TEXTURE_2D);
         stbi_image_free(texDat);
 
         glEnable(GL_TEXTURE_2D);
@@ -61,10 +64,14 @@ void drawTexture(Vector2f pos, int layer, float width, const std::string& textur
         glTranslatef(pos.x - width / 2, pos.y - width / 2, 0.0f);
 
         glBegin(GL_QUADS);
-        glTexCoord2f(0.0f, 1.0f); glVertex3f(-width / 2, -width / 2, -layer);
-        glTexCoord2f(1.0f, 1.0f); glVertex3f(width / 2, -width / 2, -layer);
-        glTexCoord2f(1.0f, 0.0f); glVertex3f(width / 2, width / 2, -layer);
-        glTexCoord2f(0.0f, 0.0f); glVertex3f(-width / 2, width / 2, -layer);
+        glTexCoord2f(0.0f, 1.0f);
+        glVertex3f(-width / 2, -width / 2, -layer);
+        glTexCoord2f(1.0f, 1.0f);
+        glVertex3f(width / 2, -width / 2, -layer);
+        glTexCoord2f(1.0f, 0.0f);
+        glVertex3f(width / 2, width / 2, -layer);
+        glTexCoord2f(0.0f, 0.0f);
+        glVertex3f(-width / 2, width / 2, -layer);
         glEnd();
 
         glPopMatrix();
@@ -113,9 +120,10 @@ GLFWwindow* init(const char* title, int width, int height)
 
         glewInit();
 
+        glEnable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_ALPHA_TEST);
-        glEnable(GL_CULL_FACE);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         reshapeWindow(window);
 
