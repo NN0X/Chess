@@ -13,6 +13,5 @@ void drawTexture(Vector2f pos, int layer, float width, const std::string& textur
 void drawTexture(const Square& square, int layer, const std::string& texturePath);
 void reshapeWindow(GLFWwindow* window);
 GLFWwindow* init(const char* title, int width, int height);
-void convertWindowToOpenGL(GLFWwindow* window, double& x, double& y);
-
+void convertToOpenGLCoords(double& x, double& y, GLFWwindow* window);
 #endif

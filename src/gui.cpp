@@ -20,13 +20,16 @@ unsigned char* loadIMG(const std::string& filename, int& width, int& height, int
 void drawSquare(Vector2f pos, int layer, float width, Color color)
 {
         glPushMatrix();
-        glTranslatef(pos.x - width / 2, pos.y - width / 2, 0.0f);
         glBegin(GL_QUADS);
         glColor3f(color.r, color.g, color.b);
-        glVertex3f(-width / 2, -width / 2, -layer);
-        glVertex3f(width / 2, -width / 2, -layer);
-        glVertex3f(width / 2, width / 2, -layer);
-        glVertex3f(-width / 2, width / 2, -layer);
+        // Top left
+        glVertex3f(pos.x, pos.y, -layer);
+        // Top right
+        glVertex3f(pos.x + width, pos.y, -layer);
+        // Bottom right
+        glVertex3f(pos.x + width, pos.y - width, -layer);
+        // Bottom left
+        glVertex3f(pos.x, pos.y - width, -layer);
         glEnd();
         glPopMatrix();
 }
@@ -61,17 +64,19 @@ void drawTexture(Vector2f pos, int layer, float width, const std::string& textur
         glBindTexture(GL_TEXTURE_2D, tex);
 
         glPushMatrix();
-        glTranslatef(pos.x - width / 2, pos.y - width / 2, 0.0f);
+        // Translate directly to the top-left corner
+        glTranslatef(pos.x, pos.y, 0.0f);
 
         glBegin(GL_QUADS);
-        glTexCoord2f(0.0f, 1.0f);
-        glVertex3f(-width / 2, -width / 2, -layer);
-        glTexCoord2f(1.0f, 1.0f);
-        glVertex3f(width / 2, -width / 2, -layer);
-        glTexCoord2f(1.0f, 0.0f);
-        glVertex3f(width / 2, width / 2, -layer);
+        // Define vertices relative to top left.
         glTexCoord2f(0.0f, 0.0f);
-        glVertex3f(-width / 2, width / 2, -layer);
+        glVertex3f(0, 0, -layer);
+        glTexCoord2f(1.0f, 0.0f);
+        glVertex3f(width, 0, -layer);
+        glTexCoord2f(1.0f, 1.0f);
+        glVertex3f(width, -width, -layer);
+        glTexCoord2f(0.0f, 1.0f);
+        glVertex3f(0, -width, -layer);
         glEnd();
 
         glPopMatrix();
@@ -132,27 +137,17 @@ GLFWwindow* init(const char* title, int width, int height)
         return window;
 }
 
-void convertWindowToOpenGL(GLFWwindow* window, double& x, double& y)
+void convertToOpenGLCoords(double& x, double& y, GLFWwindow* window)
 {
-        int w, h;
-        glfwGetFramebufferSize(window, &w, &h);
+        int width, height;
+        glfwGetWindowSize(window, &width, &height);
+        double aspectRatio = (double)width / height;
 
-        double aspectRatio = (double)w / h;
+        x = (x / width) * 2.0 - 1.0;
+        y = 1.0 - (y / height) * 2.0;
 
-        // convert window coordinates to OpenGL coordinates
-        double xPos = (x / w) * 2.0 - 1.0;
-        double yPos = 1.0 - (y / h) * 2.0;
-        if (w <= h)
-        {
-                xPos *= aspectRatio;
-                yPos /= aspectRatio;
-        }
+        if (width <= height)
+                y /= aspectRatio;
         else
-        {
-                xPos /= aspectRatio;
-                yPos *= aspectRatio;
-        }
-
-        x = xPos;
-        y = yPos;
+                x *= aspectRatio;
 }

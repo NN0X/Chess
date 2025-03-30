@@ -19,7 +19,7 @@ struct Square
 
         inline bool in(float x, float y) const
         {
-                return (x >= pos.x && x <= pos.x + size && y >= pos.y && y <= pos.y + size);
+                return (x >= pos.x && x <= pos.x + size && y <= pos.y && y >= pos.y - size);
         }
 };
 
