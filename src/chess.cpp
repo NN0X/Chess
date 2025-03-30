@@ -55,20 +55,35 @@ void printBoardState(const BoardState& boardState)
                         std::cout << "\n";
                 if (boardState.pieces[i].type == NONE)
                         std::cout << " ";
-                else if (boardState.pieces[i].type == PAWN)
+                else if (boardState.pieces[i].type == PAWN && boardState.pieces[i].isWhite)
                         std::cout << "P";
-                else if (boardState.pieces[i].type == KNIGHT)
+                else if (boardState.pieces[i].type == KNIGHT && boardState.pieces[i].isWhite)
                         std::cout << "N";
-                else if (boardState.pieces[i].type == BISHOP)
+                else if (boardState.pieces[i].type == BISHOP && boardState.pieces[i].isWhite)
                         std::cout << "B";
-                else if (boardState.pieces[i].type == ROOK)
+                else if (boardState.pieces[i].type == ROOK && boardState.pieces[i].isWhite)
                         std::cout << "R";
-                else if (boardState.pieces[i].type == QUEEN)
+                else if (boardState.pieces[i].type == QUEEN && boardState.pieces[i].isWhite)
                         std::cout << "Q";
-                else if (boardState.pieces[i].type == KING)
+                else if (boardState.pieces[i].type == KING && boardState.pieces[i].isWhite)
                         std::cout << "K";
+                else if (boardState.pieces[i].type == PAWN)
+                        std::cout << "p";
+                else if (boardState.pieces[i].type == KNIGHT)
+                        std::cout << "n";
+                else if (boardState.pieces[i].type == BISHOP)
+                        std::cout << "b";
+                else if (boardState.pieces[i].type == ROOK)
+                        std::cout << "r";
+                else if (boardState.pieces[i].type == QUEEN)
+                        std::cout << "q";
+                else if (boardState.pieces[i].type == KING)
+                        std::cout << "k";
+                else
+                        std::cout << "?";
         }
         std::cout << "\n";
+        std::cout << "Turn: " << (boardState.isWhiteTurn ? "White" : "Black") << "\n";
 }
 
 Board generateBoard(int width, int height, bool isBlackPersp, Color whiteColor, Color blackColor)
@@ -133,67 +148,48 @@ const std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq
 int applyFEN(const std::string& fen, BoardState& boardState)
 {
         int numKings = 0;
+        boardState.pieces.fill({NONE, false, false}); // Clear the board
 
-        // piece placement
+        // Piece placement parsing
+        size_t fenIndex = 0;
         int boardIndex = 0;
-        int fenIndex = 0;
-        for (const char& c : fen)
+
+        while (fenIndex < fen.size() && fen[fenIndex] != ' ')
         {
-                if (boardIndex > 63)
-                        return -1;
-                if (fenIndex > fen.size() - 1)
-                        return -1;
-                if (c == ' ')
+                char c = fen[fenIndex++];
+                if (c == '/')
                 {
-                        fenIndex++;
-                        break;
-                }
-                else if (c == '/')
-                {
-                        fenIndex++;
                         continue;
                 }
-                else if (c >= '1' && c <= '8')
+                else if (isdigit(c))
                 {
-                        boardIndex += c - '0';
-                        fenIndex++;
-                        continue;
+                        int emptySquares = c - '0';
+                        boardIndex += emptySquares;
+                        if (boardIndex > 64)
+                                return -1; // Too many squares
                 }
-                else if (c == 'R')
-                        boardState.pieces[boardIndex] = {ROOK, false, true};
-                else if (c == 'r')
-                        boardState.pieces[boardIndex] = {ROOK, false, false};
-                else if (c == 'N')
-                        boardState.pieces[boardIndex] = {KNIGHT, false, true};
-                else if (c == 'n')
-                        boardState.pieces[boardIndex] = {KNIGHT, false, false};
-                else if (c == 'B')
-                        boardState.pieces[boardIndex] = {BISHOP, false, true};
-                else if (c == 'b')
-                        boardState.pieces[boardIndex] = {BISHOP, false, false};
-                else if (c == 'Q')
-                        boardState.pieces[boardIndex] = {QUEEN, false, true};
-                else if (c == 'q')
-                        boardState.pieces[boardIndex] = {QUEEN, false, false};
-                else if (c == 'K')
+                else
                 {
-                        boardState.pieces[boardIndex] = {KING, false, true};
-                        numKings++;
+                        if (boardIndex >= 64)
+                                return -1; // Exceeded board bounds
+
+                        Piece piece = {NONE, false, false};
+                        switch (toupper(c))
+                        {
+                                case 'R': piece.type = ROOK; break;
+                                case 'N': piece.type = KNIGHT; break;
+                                case 'B': piece.type = BISHOP; break;
+                                case 'Q': piece.type = QUEEN; break;
+                                case 'K': piece.type = KING; numKings++; break;
+                                case 'P': piece.type = PAWN; break;
+                                default: return -1; // Invalid character
+                        }
+                        piece.isWhite = isupper(c);
+                        boardState.pieces[boardIndex++] = piece;
                 }
-                else if (c == 'k')
-                {
-                        boardState.pieces[boardIndex] = {KING, false, false};
-                        numKings++;
-                }
-                else if (c == 'P')
-                        boardState.pieces[boardIndex] = {PAWN, false, true};
-                else if (c == 'p')
-                        boardState.pieces[boardIndex] = {PAWN, false, false};
-                boardIndex++;
-                fenIndex++;
         }
 
-        if (numKings != 2)
+        if (boardIndex != 64 || numKings != 2)
                 return -1;
 
         if (fenIndex > fen.size() - 1)
@@ -208,6 +204,8 @@ int applyFEN(const std::string& fen, BoardState& boardState)
                 boardState.fullMoveClock = 1;
                 return 0;
         }
+
+        fenIndex++; // Skip space
 
         // active color
         if (fen[fenIndex] == 'w')
@@ -265,6 +263,7 @@ int applyFEN(const std::string& fen, BoardState& boardState)
                 fenIndex++;
         }
 
+        fenIndex++; // Skip space
         std::string fullMoveClock = "";
         while (fen[fenIndex] != ' ')
         {
@@ -296,9 +295,55 @@ int awake(GLFWwindow** window)
 
 bool isMovingPiece = false;
 
+bool checkLegality(const BoardState& boardState, int fromIndex, int toIndex)
+{
+        // check if on board
+        if (fromIndex < 0 || fromIndex > 63 || toIndex < 0 || toIndex > 63)
+        {
+                std::cout << "From or to index is out of bounds\n";
+                return false;
+        }
+        // check if same square
+        if (fromIndex == toIndex)
+        {
+                std::cout << "From and to index are the same\n";
+                return false;
+        }
+
+        // check if correct color
+        if (boardState.pieces[fromIndex].type == NONE)
+        {
+                std::cout << "No piece at from index\n";
+                return false;
+        }
+
+        if (boardState.pieces[fromIndex].isWhite != boardState.isWhiteTurn)
+        {
+                std::cout << "From index is occupied by opposite color\n";
+                return false;
+        }
+
+        if (boardState.pieces[toIndex].isWhite == boardState.isWhiteTurn && boardState.pieces[toIndex].type != NONE)
+        {
+                std::cout << "To index is occupied by same color\n";
+                return false;
+        }
+
+        // check for check
+
+        // check for castling
+
+        // check for en passant
+
+        // check for type based legality
+
+        std::cout << "Move is legal\n";
+        return true;
+}
+
 void movePiece(BoardState& boardState, const Board& board, int fromIndex, int toIndex)
 {
-        if (fromIndex < 0 || fromIndex > 63 || toIndex < 0 || toIndex > 63 || fromIndex == toIndex)
+        if (!checkLegality(boardState, fromIndex, toIndex))
                 return;
 
         boardState.pieces[toIndex] = boardState.pieces[fromIndex];
@@ -346,7 +391,11 @@ int update(GLFWwindow* window)
         Board board = generateBoard(800, 800, false, {1.f, 1.f, 1.f}, {0.34f, 0.2f, 0.2f});
         BoardState boardState;
         boardState.pieces.fill({NONE, false, false});
-        applyFEN(startFEN, boardState);
+        if (applyFEN(startFEN, boardState) != 0)
+        {
+                std::cerr << "Error parsing FEN\n";
+                return -1;
+        }
         printBoardState(boardState);
         double xpos, ypos;
         while (!glfwWindowShouldClose(window))
