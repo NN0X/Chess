@@ -19,17 +19,18 @@ unsigned char* loadIMG(const std::string& filename, int& width, int& height, int
 // layer [0, 1, 2, ...], 0 is the furthest layer, 1 is the next furthest, etc.
 void drawSquare(Vector2f pos, int layer, float width, Color color)
 {
+        float layerDecimated = (float)layer / 10000.0f;
         glPushMatrix();
         glBegin(GL_QUADS);
         glColor3f(color.r, color.g, color.b);
         // Top left
-        glVertex3f(pos.x, pos.y, -layer);
+        glVertex3f(pos.x, pos.y, -layerDecimated);
         // Top right
-        glVertex3f(pos.x + width, pos.y, -layer);
+        glVertex3f(pos.x + width, pos.y, -layerDecimated);
         // Bottom right
-        glVertex3f(pos.x + width, pos.y - width, -layer);
+        glVertex3f(pos.x + width, pos.y - width, -layerDecimated);
         // Bottom left
-        glVertex3f(pos.x, pos.y - width, -layer);
+        glVertex3f(pos.x, pos.y - width, -layerDecimated);
         glEnd();
         glPopMatrix();
 }
@@ -43,6 +44,7 @@ void drawTexture(Vector2f pos, int layer, float width, const std::string& textur
 {
         int texWidth, texHeight, texChannels;
         unsigned char* texDat = loadIMG(texturePath, texWidth, texHeight, texChannels);
+        float layerDecimated = (float)layer / 10000.0f;
 
         if (!texDat)
                 return;
@@ -70,13 +72,13 @@ void drawTexture(Vector2f pos, int layer, float width, const std::string& textur
         glBegin(GL_QUADS);
         // Define vertices relative to top left.
         glTexCoord2f(0.0f, 0.0f);
-        glVertex3f(0, 0, -layer);
+        glVertex3f(0, 0, -layerDecimated);
         glTexCoord2f(1.0f, 0.0f);
-        glVertex3f(width, 0, -layer);
+        glVertex3f(width, 0, -layerDecimated);
         glTexCoord2f(1.0f, 1.0f);
-        glVertex3f(width, -width, -layer);
+        glVertex3f(width, -width, -layerDecimated);
         glTexCoord2f(0.0f, 1.0f);
-        glVertex3f(0, -width, -layer);
+        glVertex3f(0, -width, -layerDecimated);
         glEnd();
 
         glPopMatrix();

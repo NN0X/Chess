@@ -45,6 +45,7 @@ struct BoardState
         int fullMoveClock;
 
         std::array<Piece, 64> pieces; // 0 is a8, 63 is h1
+        std::array<std::array<bool, 64>, 64> canMoveTo; // array of possible moves for each piece
 };
 
 void printBoardState(const BoardState& boardState)
@@ -84,6 +85,18 @@ void printBoardState(const BoardState& boardState)
         }
         std::cout << "\n";
         std::cout << "Turn: " << (boardState.isWhiteTurn ? "White" : "Black") << "\n";
+}
+
+void printAvailableMoves(const BoardState& boardState, int from)
+{
+        std::cout << "Available moves for piece at " << from << ": \n";
+        for (int i = 0; i < 64; i++)
+        {
+                std::cout << (boardState.canMoveTo[from][i] ? i : -1) << " ";
+                if (i % 8 == 7)
+                        std::cout << "\n";
+        }
+        std::cout << "\n";
 }
 
 Board generateBoard(int width, int height, bool isBlackPersp, Color whiteColor, Color blackColor)
@@ -144,6 +157,89 @@ void drawBoard(const Board& board, const BoardState& boardState)
 }
 
 const std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+void generatePawnMoves(BoardState& boardState, int i)
+{
+}
+
+void generateKnightMoves(BoardState& boardState, int i)
+{
+}
+
+void generateBishopMoves(BoardState& boardState, int i)
+{
+}
+
+void generateRookMoves(BoardState& boardState, int i)
+{
+}
+
+void generateKingMoves(BoardState& boardState, int i)
+{
+}
+
+void eliminateCheckMoves(BoardState& boardState, int i)
+{
+        for (int j = 0; j < 64; j++)
+        {
+                if (boardState.canMoveTo[i][j])
+                {
+                        // Check if the move puts the king in check
+                        // If it does, eliminate the move
+
+                        // if king is in check then
+                        // check if the move prevents the king from being in check
+                        // if it does not then eliminate the move
+                }
+        }
+}
+
+void generatePossibleMoves(BoardState& boardState)
+{
+        boardState.canMoveTo.fill({false}); // Clear the canMoveTo array
+        for (int i = 0; i < 64; i++)
+        {
+                const Piece piece = boardState.pieces[i];
+                switch (piece.type)
+                {
+                        case NONE:
+                                break;
+                        case PAWN:
+                                generatePawnMoves(boardState, i);
+                                break;
+                        case KNIGHT:
+                                generateKnightMoves(boardState, i);
+                                break;
+                        case BISHOP:
+                                generateBishopMoves(boardState, i);
+                                break;
+                        case ROOK:
+                                generateRookMoves(boardState, i);
+                                break;
+                        case QUEEN:
+                                generateBishopMoves(boardState, i);
+                                generateRookMoves(boardState, i);
+                                break;
+                        case KING:
+                                generateKingMoves(boardState, i);
+                                break;
+                        default:
+                                std::cerr << "Invalid piece type\n";
+                                break;
+                }
+                eliminateCheckMoves(boardState, i);
+        }
+}
+
+bool isGameOver(const BoardState& boardState)
+{
+        // Check if the game is over
+        // Check for checkmate or stalemate
+        // If the game is over, return true
+        // Otherwise, return false
+
+        return false;
+}
 
 int applyFEN(const std::string& fen, BoardState& boardState)
 {
@@ -281,6 +377,8 @@ int applyFEN(const std::string& fen, BoardState& boardState)
                 return -1;
         }
 
+        generatePossibleMoves(boardState);
+
         return 0;
 }
 
@@ -329,13 +427,11 @@ bool checkLegality(const BoardState& boardState, int fromIndex, int toIndex)
                 return false;
         }
 
-        // check for check
-
-        // check for castling
-
-        // check for en passant
-
-        // check for type based legality
+        if (!boardState.canMoveTo[fromIndex][toIndex])
+        {
+                std::cout << "Move is not legal\n";
+                return false;
+        }
 
         std::cout << "Move is legal\n";
         return true;
@@ -350,6 +446,8 @@ void movePiece(BoardState& boardState, const Board& board, int fromIndex, int to
         boardState.pieces[fromIndex] = {NONE, false, false};
         boardState.isWhiteTurn = !boardState.isWhiteTurn;
         boardState.halfMoveClock++;
+
+        std::cout << "Turn: " << (boardState.isWhiteTurn ? "White" : "Black") << "\n";
 }
 
 int getSquareIndexAtPostition(float x, float y, GLFWwindow* window, const Board& board)
@@ -363,6 +461,23 @@ int getSquareIndexAtPostition(float x, float y, GLFWwindow* window, const Board&
         return -1;
 }
 
+void drawPossibleMoves(const Board& board, const BoardState& boardState, int from)
+{
+        Square redishSquare = board.squares[from];
+        redishSquare.color = {1.f, 0.5f, 0.5f};
+        for (int i = 0; i < 64; i++)
+        {
+                for (int j = 0; j < 64; j++)
+                {
+                        if (boardState.canMoveTo[from][j])
+                        {
+                                redishSquare.pos = board.squares[j].pos;
+                                drawSquare(board.squares[j], 2);
+                        }
+                }
+        }
+}
+
 void processInput(GLFWwindow* window, BoardState& boardState, const Board& board, double& prevXpos, double& prevYpos)
 {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -372,6 +487,10 @@ void processInput(GLFWwindow* window, BoardState& boardState, const Board& board
         {
                 glfwGetCursorPos(window, &prevXpos, &prevYpos);
                 convertToOpenGLCoords(prevXpos, prevYpos, window);
+                int from = getSquareIndexAtPostition(prevXpos, prevYpos, window, board);
+                generatePossibleMoves(boardState);
+                drawPossibleMoves(board, boardState, from);
+                printAvailableMoves(boardState, from);
                 isMovingPiece = true;
         }
         else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE && isMovingPiece)
