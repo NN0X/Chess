@@ -19,14 +19,18 @@ unsigned char* loadIMG(const std::string& filename, int& width, int& height, int
 // layer [0, 1, 2, ...], 0 is the furthest layer, 1 is the next furthest, etc.
 void drawSquare(Vector2f pos, int layer, float width, Color color)
 {
+        float layerDecimated = (float)layer / 10000.0f;
         glPushMatrix();
-        glTranslatef(pos.x - width / 2, pos.y - width / 2, 0.0f);
         glBegin(GL_QUADS);
         glColor3f(color.r, color.g, color.b);
-        glVertex3f(-width / 2, -width / 2, -layer);
-        glVertex3f(width / 2, -width / 2, -layer);
-        glVertex3f(width / 2, width / 2, -layer);
-        glVertex3f(-width / 2, width / 2, -layer);
+        // Top left
+        glVertex3f(pos.x, pos.y, -layerDecimated);
+        // Top right
+        glVertex3f(pos.x + width, pos.y, -layerDecimated);
+        // Bottom right
+        glVertex3f(pos.x + width, pos.y - width, -layerDecimated);
+        // Bottom left
+        glVertex3f(pos.x, pos.y - width, -layerDecimated);
         glEnd();
         glPopMatrix();
 }
@@ -40,6 +44,7 @@ void drawTexture(Vector2f pos, int layer, float width, const std::string& textur
 {
         int texWidth, texHeight, texChannels;
         unsigned char* texDat = loadIMG(texturePath, texWidth, texHeight, texChannels);
+        float layerDecimated = (float)layer / 10000.0f;
 
         if (!texDat)
                 return;
@@ -61,17 +66,19 @@ void drawTexture(Vector2f pos, int layer, float width, const std::string& textur
         glBindTexture(GL_TEXTURE_2D, tex);
 
         glPushMatrix();
-        glTranslatef(pos.x - width / 2, pos.y - width / 2, 0.0f);
+        // Translate directly to the top-left corner
+        glTranslatef(pos.x, pos.y, 0.0f);
 
         glBegin(GL_QUADS);
-        glTexCoord2f(0.0f, 1.0f);
-        glVertex3f(-width / 2, -width / 2, -layer);
-        glTexCoord2f(1.0f, 1.0f);
-        glVertex3f(width / 2, -width / 2, -layer);
-        glTexCoord2f(1.0f, 0.0f);
-        glVertex3f(width / 2, width / 2, -layer);
+        // Define vertices relative to top left.
         glTexCoord2f(0.0f, 0.0f);
-        glVertex3f(-width / 2, width / 2, -layer);
+        glVertex3f(0, 0, -layerDecimated);
+        glTexCoord2f(1.0f, 0.0f);
+        glVertex3f(width, 0, -layerDecimated);
+        glTexCoord2f(1.0f, 1.0f);
+        glVertex3f(width, -width, -layerDecimated);
+        glTexCoord2f(0.0f, 1.0f);
+        glVertex3f(0, -width, -layerDecimated);
         glEnd();
 
         glPopMatrix();
@@ -130,4 +137,19 @@ GLFWwindow* init(const char* title, int width, int height)
         glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 
         return window;
+}
+
+void convertToOpenGLCoords(double& x, double& y, GLFWwindow* window)
+{
+        int width, height;
+        glfwGetWindowSize(window, &width, &height);
+        double aspectRatio = (double)width / height;
+
+        x = (x / width) * 2.0 - 1.0;
+        y = 1.0 - (y / height) * 2.0;
+
+        if (width <= height)
+                y /= aspectRatio;
+        else
+                x *= aspectRatio;
 }

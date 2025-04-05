@@ -13,9 +13,14 @@ struct Vector2f
 
 struct Square
 {
-        Vector2f pos;
+        Vector2f pos; // position of the square at the top left corner
         float size;
         Color color;
+
+        inline bool in(float x, float y) const
+        {
+                return (x >= pos.x && x <= pos.x + size && y <= pos.y && y >= pos.y - size);
+        }
 };
 
 #endif
