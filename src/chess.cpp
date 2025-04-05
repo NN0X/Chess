@@ -10,6 +10,8 @@
 
 struct Board
 {
+        Color whiteColor;
+        Color blackColor;
         std::array<Square, 64> squares; // 0 is a8, 63 is h1
 };
 
@@ -108,6 +110,9 @@ Board generateBoard(int width, int height, bool isBlackPersp, Color whiteColor, 
 
         Board board;
 
+        board.whiteColor = whiteColor;
+        board.blackColor = blackColor;
+
         for (int i = 0; i < 8; i++)
         {
                 for (int j = 0; j < 8; j++)
@@ -158,8 +163,81 @@ void drawBoard(const Board& board, const BoardState& boardState)
 
 const std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+/*
+rnbqkbnr
+pppppppp
+
+
+
+
+PPPPPPPP
+RNBQKBNR
+
+
+-1 -1 -1 -1 -1 -1 -1 -1
+-1 -1 -1 -1 -1 -1 -1 -1
+-1 -1 -1 -1 -1 -1 -1 -1
+-1 -1 -1 -1 -1 -1 -1 -1
+-1 -1 -1 -1 -1 -1 -1 -1
+-1 -1 -1 -1 -1 -1 -1 -1
+-1 -1 -1 -1 -1 -1 -1 -1
+-1 -1 -1 -1 -1 -1 -1 -1
+
+*/
+
 void generatePawnMoves(BoardState& boardState, int i)
 {
+        int direction = boardState.pieces[i].isWhite ? -1 : 1;
+        int startRank = boardState.pieces[i].isWhite ? 6 : 1;
+        int rank = i / 8;
+        int file = i % 8;
+        int forwardSquare = i + direction * 8;
+        int forwardTwoSquare = i + direction * 16;
+        int leftCaptureSquare = i + direction * 8 - 1;
+        int rightCaptureSquare = i + direction * 8 + 1;
+
+        bool canMoveForward = (rank + direction >= 0 && rank + direction < 8) && boardState.pieces[forwardSquare].type == NONE;
+        bool canMoveForwardTwo = (rank + direction * 2 >= 0 && rank + direction * 2 < 8) && boardState.pieces[forwardTwoSquare].type == NONE;
+        bool canCaptureLeft = (rank + direction >= 0 && rank + direction < 8) && (file - 1 >= 0) && boardState.pieces[leftCaptureSquare].type != NONE && boardState.pieces[leftCaptureSquare].isWhite != boardState.pieces[i].isWhite;
+        bool canCaptureRight = (rank + direction >= 0 && rank + direction < 8) && (file + 1 < 8) && boardState.pieces[rightCaptureSquare].type != NONE && boardState.pieces[rightCaptureSquare].isWhite != boardState.pieces[i].isWhite;
+
+        if (canMoveForward)
+        {
+                boardState.canMoveTo[i][forwardSquare] = true;
+                if (canMoveForwardTwo && rank == startRank)
+                {
+                        boardState.canMoveTo[i][forwardTwoSquare] = true;
+                }
+        }
+
+        if (canCaptureLeft)
+        {
+                boardState.canMoveTo[i][leftCaptureSquare] = true;
+        }
+
+        if (canCaptureRight)
+        {
+                boardState.canMoveTo[i][rightCaptureSquare] = true;
+        }
+
+        // En passant
+
+        int enPassantRank = boardState.enPassantSquare / 8;
+        const int whiteEnPassantRank = 2;
+        const int blackEnPassantRank = 7;
+
+        bool enPassantCorrectColor = boardState.pieces[i].isWhite && enPassantRank == whiteEnPassantRank ||
+                                     !boardState.pieces[i].isWhite && enPassantRank == blackEnPassantRank;
+
+        if (boardState.enPassantSquare != -1 && enPassantCorrectColor)
+        {
+                int enPassantFile = boardState.enPassantSquare % 8;
+                bool enPassantSquareFree = boardState.pieces[boardState.enPassantSquare].type == NONE;
+                if (enPassantRank == rank + direction && (enPassantFile == file - 1 || enPassantFile == file + 1) && enPassantSquareFree)
+                {
+                        boardState.canMoveTo[i][boardState.enPassantSquare] = true;
+                }
+        }
 }
 
 void generateKnightMoves(BoardState& boardState, int i)
@@ -447,7 +525,52 @@ void movePiece(BoardState& boardState, const Board& board, int fromIndex, int to
         boardState.isWhiteTurn = !boardState.isWhiteTurn;
         boardState.halfMoveClock++;
 
+        if (boardState.pieces[toIndex].type == PAWN)
+        {
+                // check if en passant capture
+                int fromFile = fromIndex % 8;
+                int toFile = toIndex % 8;
+                int fileDistance = toFile - fromFile;
+                if (boardState.enPassantSquare == toIndex && (fileDistance == 1 || fileDistance == -1))
+                {
+                        int capturedPawnIndex = toIndex + (boardState.pieces[toIndex].isWhite ? 8 : -8);
+                        boardState.pieces[capturedPawnIndex] = {NONE, false, false};
+                        boardState.enPassantSquare = -1;
+                }
+
+                // check for en passant possibility
+                int fromRank = fromIndex / 8;
+                int toRank = toIndex / 8;
+                int rankDistance = toRank - fromRank;
+                if (rankDistance == 2 || rankDistance == -2)
+                {
+                        boardState.enPassantSquare = fromIndex + (boardState.pieces[fromIndex].isWhite ? -8 : 8);
+                }
+                else
+                {
+                        boardState.enPassantSquare = -1;
+                }
+
+                // check for promotion
+                if (toRank == 0 && boardState.pieces[toIndex].isWhite)
+                {
+                        boardState.pieces[toIndex] = {QUEEN, true, true};
+                }
+                else if (toRank == 7 && !boardState.pieces[toIndex].isWhite)
+                {
+                        boardState.pieces[toIndex] = {QUEEN, true, false};
+                }
+        }
+        else
+        {
+                boardState.enPassantSquare = -1;
+        }
+
         std::cout << "Turn: " << (boardState.isWhiteTurn ? "White" : "Black") << "\n";
+        if (boardState.enPassantSquare != -1)
+        {
+                std::cout << "En passant square: " << boardState.enPassantSquare << "\n";
+        }
 }
 
 int getSquareIndexAtPostition(float x, float y, GLFWwindow* window, const Board& board)
@@ -461,24 +584,38 @@ int getSquareIndexAtPostition(float x, float y, GLFWwindow* window, const Board&
         return -1;
 }
 
-void drawPossibleMoves(const Board& board, const BoardState& boardState, int from)
+void colorPossibleMoves(Board& board, const BoardState& boardState, int from)
 {
-        Square redishSquare = board.squares[from];
-        redishSquare.color = {1.f, 0.5f, 0.5f};
+        // redish color
+        Color highlightColor = {0.8f, 0.2f, 0.2f};
         for (int i = 0; i < 64; i++)
         {
-                for (int j = 0; j < 64; j++)
+                if (boardState.canMoveTo[from][i])
                 {
-                        if (boardState.canMoveTo[from][j])
-                        {
-                                redishSquare.pos = board.squares[j].pos;
-                                drawSquare(board.squares[j], 2);
-                        }
+                        board.squares[i].color = highlightColor;
+                }
+                else
+                {
+                        if ((i / 8 + i % 8) % 2 == 0)
+                                board.squares[i].color = board.whiteColor;
+                        else
+                                board.squares[i].color = board.blackColor;
                 }
         }
 }
 
-void processInput(GLFWwindow* window, BoardState& boardState, const Board& board, double& prevXpos, double& prevYpos)
+void recolorBoard(Board& board)
+{
+        for (int i = 0; i < 64; i++)
+        {
+                if ((i / 8 + i % 8) % 2 == 0)
+                        board.squares[i].color = board.whiteColor;
+                else
+                        board.squares[i].color = board.blackColor;
+        }
+}
+
+void processInput(GLFWwindow* window, BoardState& boardState, Board& board, double& prevXpos, double& prevYpos)
 {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
                 glfwSetWindowShouldClose(window, true);
@@ -489,7 +626,7 @@ void processInput(GLFWwindow* window, BoardState& boardState, const Board& board
                 convertToOpenGLCoords(prevXpos, prevYpos, window);
                 int from = getSquareIndexAtPostition(prevXpos, prevYpos, window, board);
                 generatePossibleMoves(boardState);
-                drawPossibleMoves(board, boardState, from);
+                colorPossibleMoves(board, boardState, from);
                 printAvailableMoves(boardState, from);
                 isMovingPiece = true;
         }
@@ -501,6 +638,7 @@ void processInput(GLFWwindow* window, BoardState& boardState, const Board& board
                 int from = getSquareIndexAtPostition(prevXpos, prevYpos, window, board);
                 int to = getSquareIndexAtPostition(xpos, ypos, window, board);
                 movePiece(boardState, board, from, to);
+                recolorBoard(board);
                 isMovingPiece = false;
         }
 }
