@@ -88,6 +88,17 @@ void printBoardState(const BoardState& boardState)
         }
         std::cout << "\n";
         std::cout << "Turn: " << (boardState.isWhiteTurn ? "White" : "Black") << "\n";
+        // castling
+        std::cout << "Castling: ";
+        if (boardState.whiteCanCastleKingside)
+                std::cout << "K";
+        if (boardState.whiteCanCastleQueenside)
+                std::cout << "Q";
+        if (boardState.blackCanCastleKingside)
+                std::cout << "k";
+        if (boardState.blackCanCastleQueenside)
+                std::cout << "q";
+        std::cout << "\n";
 }
 
 void printAvailableMoves(const BoardState& boardState, int from)
@@ -196,7 +207,6 @@ void generatePawnMoves(BoardState& boardState, int i)
         int forwardTwoSquare = i + direction * 16;
         int leftCaptureSquare = i + direction * 8 - 1;
         int rightCaptureSquare = i + direction * 8 + 1;
-
         bool canMoveForward = (rank + direction >= 0 && rank + direction < 8) && boardState.pieces[forwardSquare].type == NONE;
         bool canMoveForwardTwo = (rank + direction * 2 >= 0 && rank + direction * 2 < 8) && boardState.pieces[forwardTwoSquare].type == NONE;
         bool canCaptureLeft = (rank + direction >= 0 && rank + direction < 8) && (file - 1 >= 0) && boardState.pieces[leftCaptureSquare].type != NONE && boardState.pieces[leftCaptureSquare].isWhite != boardState.pieces[i].isWhite;
@@ -380,84 +390,7 @@ void generateKingMoves(BoardState& boardState, int i)
                         }
                 }
         }
-
-        // Castling
-        if (boardState.whiteCanCastleKingside && boardState.pieces[5].type == NONE && boardState.pieces[6].type == NONE)
-        {
-                // check if the squares are empty and not under attack
-
-                int squaresToCheck[2] = {5, 6};
-                for (int j : squaresToCheck)
-                {
-                        if (boardState.pieces[j].type != NONE)
-                                return;
-                        for (int k = 0; k < 64; k++)
-                        {
-                                if (boardState.canMoveTo[k][j] && boardState.pieces[k].isWhite != boardState.pieces[i].isWhite)
-                                {
-                                        return;
-                                }
-                        }
-                }
-
-                boardState.canMoveTo[i][6] = true;
-        }
-        if (boardState.whiteCanCastleQueenside && boardState.pieces[3].type == NONE && boardState.pieces[2].type == NONE)
-        {
-                int squaresToCheck[2] = {3, 2};
-                for (int j : squaresToCheck)
-                {
-                        if (boardState.pieces[j].type != NONE)
-                                return;
-                        for (int k = 0; k < 64; k++)
-                        {
-                                if (boardState.canMoveTo[k][j] && boardState.pieces[k].isWhite != boardState.pieces[i].isWhite)
-                                {
-                                        return;
-                                }
-                        }
-                }
-
-                boardState.canMoveTo[i][2] = true;
-        }
-        if (boardState.blackCanCastleKingside && boardState.pieces[61].type == NONE && boardState.pieces[62].type == NONE)
-        {
-                int squaresToCheck[2] = {61, 62};
-                for (int j : squaresToCheck)
-                {
-                        if (boardState.pieces[j].type != NONE)
-                                return;
-                        for (int k = 0; k < 64; k++)
-                        {
-                                if (boardState.canMoveTo[k][j] && boardState.pieces[k].isWhite != boardState.pieces[i].isWhite)
-                                {
-                                        return;
-                                }
-                        }
-                }
-
-                boardState.canMoveTo[i][62] = true;
-        }
-        if (boardState.blackCanCastleQueenside && boardState.pieces[59].type == NONE && boardState.pieces[58].type == NONE)
-        {
-                int squaresToCheck[2] = {59, 58};
-                for (int j : squaresToCheck)
-                {
-                        if (boardState.pieces[j].type != NONE)
-                                return;
-                        for (int k = 0; k < 64; k++)
-                        {
-                                if (boardState.canMoveTo[k][j] && boardState.pieces[k].isWhite != boardState.pieces[i].isWhite)
-                                {
-                                        return;
-                                }
-                        }
-                }
-
-                boardState.canMoveTo[i][58] = true;
-        }
 }
-
 
 void generatePossibleMoves(BoardState& boardState)
 {
@@ -493,6 +426,11 @@ void generatePossibleMoves(BoardState& boardState)
                                 break;
                 }
         }
+
+        // Check for castling
+
+        // black: 0-7
+        // white: 56-63
 }
 
 void eliminateCheckMoves(BoardState& boardState, int i)
@@ -544,14 +482,19 @@ void eliminateCheckMoves(BoardState& boardState, int i)
         }
 }
 
-bool isGameOver(const BoardState& boardState)
+enum GameState
+{
+        CONTINUE = 0,
+        CHECKMATE = 1,
+        STALEMATE = 2
+};
+
+int checkGameState(const BoardState& boardState)
 {
         // Check if the game is over
         // Check for checkmate or stalemate
-        // If the game is over, return true
-        // Otherwise, return false
 
-        return false;
+        return CONTINUE;
 }
 
 int applyFEN(const std::string& fen, BoardState& boardState)
@@ -757,7 +700,8 @@ bool checkLegality(const BoardState& boardState, int fromIndex, int toIndex)
 
 void pawnMoved(BoardState& boardState, int fromIndex, int toIndex)
 {
-        if (boardState.pieces[toIndex].type == PAWN)
+        Piece movedPiece = boardState.pieces[fromIndex];
+        if (movedPiece.type == PAWN)
         {
                 // check if en passant capture
                 int fromFile = fromIndex % 8;
@@ -765,7 +709,7 @@ void pawnMoved(BoardState& boardState, int fromIndex, int toIndex)
                 int fileDistance = toFile - fromFile;
                 if (boardState.enPassantSquare == toIndex && (fileDistance == 1 || fileDistance == -1))
                 {
-                        int capturedPawnIndex = toIndex + (boardState.pieces[toIndex].isWhite ? 8 : -8);
+                        int capturedPawnIndex = toIndex + (movedPiece.isWhite ? 8 : -8);
                         boardState.pieces[capturedPawnIndex] = {NONE, false};
                         boardState.enPassantSquare = -1;
                 }
@@ -776,7 +720,7 @@ void pawnMoved(BoardState& boardState, int fromIndex, int toIndex)
                 int rankDistance = toRank - fromRank;
                 if (rankDistance == 2 || rankDistance == -2)
                 {
-                        boardState.enPassantSquare = fromIndex + (boardState.pieces[fromIndex].isWhite ? -8 : 8);
+                        boardState.enPassantSquare = fromIndex + (movedPiece.isWhite ? 8 : -8);
                 }
                 else
                 {
@@ -784,11 +728,11 @@ void pawnMoved(BoardState& boardState, int fromIndex, int toIndex)
                 }
 
                 // check for promotion
-                if (toRank == 0 && boardState.pieces[toIndex].isWhite)
+                if (toRank == 0 && movedPiece.isWhite)
                 {
                         boardState.pieces[toIndex] = {QUEEN, true};
                 }
-                else if (toRank == 7 && !boardState.pieces[toIndex].isWhite)
+                else if (toRank == 7 && !movedPiece.isWhite)
                 {
                         boardState.pieces[toIndex] = {QUEEN, false};
                 }
@@ -801,32 +745,74 @@ void pawnMoved(BoardState& boardState, int fromIndex, int toIndex)
 
 void rookMoved(BoardState& boardState, int fromIndex, int toIndex)
 {
-        if (boardState.pieces[fromIndex].type == ROOK)
+        Piece movedPiece = boardState.pieces[fromIndex];
+        if (movedPiece.type == ROOK)
         {
-                if (fromIndex == 0)
-                        boardState.whiteCanCastleQueenside = false;
-                else if (fromIndex == 7)
-                        boardState.whiteCanCastleKingside = false;
-                else if (fromIndex == 56)
+                if (fromIndex == 0 && !movedPiece.isWhite)
+                {
                         boardState.blackCanCastleQueenside = false;
-                else if (fromIndex == 63)
+                }
+                else if (fromIndex == 7 && !movedPiece.isWhite)
+                {
                         boardState.blackCanCastleKingside = false;
+                }
+                else if (fromIndex == 56 && movedPiece.isWhite)
+                {
+                        boardState.whiteCanCastleQueenside = false;
+                }
+                else if (fromIndex == 63 && movedPiece.isWhite)
+                {
+                        boardState.whiteCanCastleKingside = false;
+                }
         }
 }
 
 void kingMoved(BoardState& boardState, int fromIndex, int toIndex)
 {
-        if (boardState.pieces[fromIndex].type == KING)
+        Piece movedPiece = boardState.pieces[fromIndex];
+        if (movedPiece.type == KING)
         {
-                if (fromIndex == 4)
+                if (fromIndex == 4 && !movedPiece.isWhite)
+                {
+                        boardState.blackCanCastleKingside = false;
+                        boardState.blackCanCastleQueenside = false;
+                }
+                else if (fromIndex == 60 && movedPiece.isWhite)
                 {
                         boardState.whiteCanCastleKingside = false;
                         boardState.whiteCanCastleQueenside = false;
                 }
-                else if (fromIndex == 60)
+
+                int toFile = toIndex % 8;
+                int fromFile = fromIndex % 8;
+
+                int fileDistance = toFile - fromFile;
+
+                if (fileDistance == 2)
                 {
-                        boardState.blackCanCastleKingside = false;
-                        boardState.blackCanCastleQueenside = false;
+                        if (!boardState.isWhiteTurn)
+                        {
+                                boardState.pieces[5] = {ROOK, false};
+                                boardState.pieces[7] = {NONE, false};
+                        }
+                        else
+                        {
+                                boardState.pieces[61] = {ROOK, true};
+                                boardState.pieces[63] = {NONE, false};
+                        }
+                }
+                else if (fileDistance == -2)
+                {
+                        if (!boardState.isWhiteTurn)
+                        {
+                                boardState.pieces[3] = {ROOK, false};
+                                boardState.pieces[0] = {NONE, false};
+                        }
+                        else
+                        {
+                                boardState.pieces[59] = {ROOK, true};
+                                boardState.pieces[56] = {NONE, false};
+                        }
                 }
         }
 }
@@ -836,21 +822,73 @@ void movePiece(BoardState& boardState, const Board& board, int fromIndex, int to
         if (!checkLegality(boardState, fromIndex, toIndex))
                 return;
 
+        pawnMoved(boardState, fromIndex, toIndex);
+        rookMoved(boardState, fromIndex, toIndex);
+        kingMoved(boardState, fromIndex, toIndex);
+
         boardState.pieces[toIndex] = boardState.pieces[fromIndex];
         boardState.pieces[fromIndex] = {NONE, false};
         boardState.isWhiteTurn = !boardState.isWhiteTurn;
         boardState.halfMoveClock++;
         boardState.fullMoveClock += boardState.isWhiteTurn ? 1 : 0;
 
-        pawnMoved(boardState, fromIndex, toIndex);
-        rookMoved(boardState, fromIndex, toIndex);
-        kingMoved(boardState, fromIndex, toIndex);
+        // check if check state to update castling
+        int kingIndex = -1;
+        for (int i = 0; i < 64; i++)
+        {
+                if (boardState.pieces[i].type == KING &&
+                        boardState.pieces[i].isWhite == boardState.isWhiteTurn)
+                {
+                        kingIndex = i;
+                        break;
+                }
+        }
+        bool isInCheck = false;
+        for (int i = 0; i < 64; i++)
+        {
+                if (boardState.canMoveTo[i][kingIndex] &&
+                        boardState.pieces[i].isWhite != boardState.isWhiteTurn &&
+                        boardState.pieces[i].type != KING)
+                {
+                        std::cout << "King is in check\n";
+                        isInCheck = true;
+                }
+        }
+
+        if (isInCheck && boardState.isWhiteTurn)
+        {
+                std::cout << "White is in check\n";
+                boardState.whiteCanCastleKingside = false;
+                boardState.whiteCanCastleQueenside = false;
+        }
+        else if (isInCheck && !boardState.isWhiteTurn)
+        {
+                std::cout << "Black is in check\n";
+                boardState.blackCanCastleKingside = false;
+                boardState.blackCanCastleQueenside = false;
+        }
 
         std::cout << "Turn: " << (boardState.isWhiteTurn ? "White" : "Black") << "\n";
         if (boardState.enPassantSquare != -1)
         {
                 std::cout << "En passant square: " << boardState.enPassantSquare << "\n";
         }
+
+        int gameState = checkGameState(boardState);
+        if (gameState == CHECKMATE)
+        {
+                std::cout << "Checkmate\n";
+        }
+        else if (gameState == STALEMATE)
+        {
+                std::cout << "Checkmate\n";
+        }
+        else
+        {
+                std::cout << "Game continues\n";
+        }
+
+        printBoardState(boardState);
 }
 
 int getSquareIndexAtPostition(float x, float y, GLFWwindow* window, const Board& board)
@@ -947,7 +985,7 @@ void processInput(GLFWwindow* window, BoardState& boardState, Board& board, doub
 }
 
 const std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const std::string castleTestFEN = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
+const std::string castleTestFEN = "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1";
 
 int update(GLFWwindow* window)
 {
