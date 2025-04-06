@@ -3,6 +3,8 @@
 #include <GL/gl.h>
 #include <iostream>
 #include <array>
+#include <vector>
+#include <algorithm>
 #include <cstdint>
 
 #include "gui.h"
@@ -160,7 +162,7 @@ void drawBoard(const Board& board, const BoardState& boardState)
         }
 }
 
-const std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 
 /*
 rnbqkbnr
@@ -382,37 +384,80 @@ void generateKingMoves(BoardState& boardState, int i)
         // Castling
         if (boardState.whiteCanCastleKingside && boardState.pieces[5].type == NONE && boardState.pieces[6].type == NONE)
         {
+                // check if the squares are empty and not under attack
+
+                int squaresToCheck[2] = {5, 6};
+                for (int j : squaresToCheck)
+                {
+                        if (boardState.pieces[j].type != NONE)
+                                return;
+                        for (int k = 0; k < 64; k++)
+                        {
+                                if (boardState.canMoveTo[k][j] && boardState.pieces[k].isWhite != boardState.pieces[i].isWhite)
+                                {
+                                        return;
+                                }
+                        }
+                }
+
                 boardState.canMoveTo[i][6] = true;
         }
         if (boardState.whiteCanCastleQueenside && boardState.pieces[3].type == NONE && boardState.pieces[2].type == NONE)
         {
+                int squaresToCheck[2] = {3, 2};
+                for (int j : squaresToCheck)
+                {
+                        if (boardState.pieces[j].type != NONE)
+                                return;
+                        for (int k = 0; k < 64; k++)
+                        {
+                                if (boardState.canMoveTo[k][j] && boardState.pieces[k].isWhite != boardState.pieces[i].isWhite)
+                                {
+                                        return;
+                                }
+                        }
+                }
+
                 boardState.canMoveTo[i][2] = true;
         }
         if (boardState.blackCanCastleKingside && boardState.pieces[61].type == NONE && boardState.pieces[62].type == NONE)
         {
+                int squaresToCheck[2] = {61, 62};
+                for (int j : squaresToCheck)
+                {
+                        if (boardState.pieces[j].type != NONE)
+                                return;
+                        for (int k = 0; k < 64; k++)
+                        {
+                                if (boardState.canMoveTo[k][j] && boardState.pieces[k].isWhite != boardState.pieces[i].isWhite)
+                                {
+                                        return;
+                                }
+                        }
+                }
+
                 boardState.canMoveTo[i][62] = true;
         }
         if (boardState.blackCanCastleQueenside && boardState.pieces[59].type == NONE && boardState.pieces[58].type == NONE)
         {
+                int squaresToCheck[2] = {59, 58};
+                for (int j : squaresToCheck)
+                {
+                        if (boardState.pieces[j].type != NONE)
+                                return;
+                        for (int k = 0; k < 64; k++)
+                        {
+                                if (boardState.canMoveTo[k][j] && boardState.pieces[k].isWhite != boardState.pieces[i].isWhite)
+                                {
+                                        return;
+                                }
+                        }
+                }
+
                 boardState.canMoveTo[i][58] = true;
         }
 }
 
-void eliminateCheckMoves(BoardState& boardState, int i)
-{
-        for (int j = 0; j < 64; j++)
-        {
-                if (boardState.canMoveTo[i][j])
-                {
-                        // Check if the move puts the king in check
-                        // If it does, eliminate the move
-
-                        // if king is in check then
-                        // check if the move prevents the king from being in check
-                        // if it does not then eliminate the move
-                }
-        }
-}
 
 void generatePossibleMoves(BoardState& boardState)
 {
@@ -447,7 +492,55 @@ void generatePossibleMoves(BoardState& boardState)
                                 std::cerr << "Invalid piece type\n";
                                 break;
                 }
-                eliminateCheckMoves(boardState, i);
+        }
+}
+
+void eliminateCheckMoves(BoardState& boardState, int i)
+{
+        int kingIndex = -1;
+        for (int j = 0; j < 64; j++)
+        {
+                if (boardState.pieces[j].type == KING &&
+                        boardState.pieces[j].isWhite == boardState.isWhiteTurn)
+                {
+                        kingIndex = j;
+                        break;
+                }
+        }
+
+        for (int j = 0; j < 64; j++)
+        {
+                if (boardState.canMoveTo[i][j])
+                {
+                        BoardState tempBoardState = boardState;
+                        tempBoardState.pieces[j] = tempBoardState.pieces[i];
+                        tempBoardState.pieces[i] = {NONE, false};
+
+                        int newKingIndex = kingIndex;
+                        if (boardState.pieces[i].type == KING)
+                        {
+                                newKingIndex = j;
+                        }
+
+                        generatePossibleMoves(tempBoardState);
+
+                        bool kingInCheck = false;
+                        for (int k = 0; k < 64; k++)
+                        {
+                                if (tempBoardState.canMoveTo[k][newKingIndex] &&
+                                        tempBoardState.pieces[k].isWhite != boardState.isWhiteTurn &&
+                                        tempBoardState.pieces[k].type != KING)
+                                {
+                                        kingInCheck = true;
+                                        break;
+                                }
+                        }
+
+                        if (kingInCheck)
+                        {
+                                boardState.canMoveTo[i][j] = false;
+                        }
+                }
         }
 }
 
@@ -651,6 +744,13 @@ bool checkLegality(const BoardState& boardState, int fromIndex, int toIndex)
                 return false;
         }
 
+        // check if move target is king
+        if (boardState.pieces[toIndex].type == KING)
+        {
+                std::cout << "Move target is king\n";
+                return false;
+        }
+
         std::cout << "Move is legal\n";
         return true;
 }
@@ -828,6 +928,7 @@ void processInput(GLFWwindow* window, BoardState& boardState, Board& board, doub
                 convertToOpenGLCoords(prevXpos, prevYpos, window);
                 int from = getSquareIndexAtPostition(prevXpos, prevYpos, window, board);
                 generatePossibleMoves(boardState);
+                eliminateCheckMoves(boardState, from);
                 colorPossibleMoves(board, boardState, from);
                 printAvailableMoves(boardState, from);
                 isMovingPiece = true;
@@ -845,12 +946,15 @@ void processInput(GLFWwindow* window, BoardState& boardState, Board& board, doub
         }
 }
 
+const std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const std::string castleTestFEN = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
+
 int update(GLFWwindow* window)
 {
         Board board = generateBoard(800, 800, false, {1.f, 1.f, 1.f}, {0.34f, 0.2f, 0.2f});
         BoardState boardState;
         boardState.pieces.fill({NONE, false});
-        if (applyFEN(startFEN, boardState) != 0)
+        if (applyFEN(castleTestFEN, boardState) != 0)
         {
                 std::cerr << "Error parsing FEN\n";
                 return -1;
