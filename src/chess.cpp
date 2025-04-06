@@ -767,6 +767,12 @@ int getSquareIndexAtPostition(float x, float y, GLFWwindow* window, const Board&
 void colorPossibleMoves(Board& board, const BoardState& boardState, int from)
 {
         // redish color
+
+        if (boardState.pieces[from].type == NONE)
+                return;
+        if (boardState.pieces[from].isWhite != boardState.isWhiteTurn)
+                return;
+
         Color highlightColor = {0.8f, 0.2f, 0.2f};
 
         Color colorMixedWhite = {
