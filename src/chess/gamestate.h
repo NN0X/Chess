@@ -47,6 +47,9 @@ struct BoardState
 
         std::array<Piece, 64> pieces; // 0 is a8, 63 is h1
         std::array<std::array<bool, 64>, 64> canMoveTo; // array of possible moves for each piece
+
+        std::string moveHistory; // TODO: implement this
+        std::vector<std::string> moveHistoryVector; // TODO: implement this to allow undoing moves and checking for 3fold repetition
 };
 
 enum GameState
