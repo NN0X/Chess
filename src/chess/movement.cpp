@@ -590,6 +590,12 @@ void kingMoved(BoardState& boardState, int fromIndex, int toIndex)
         }
 }
 
+void addStateToHistory(const BoardState& boardState)
+{
+        BoardState newState = boardState;
+        newState.stateHistory.push_back(newState);
+}
+
 void movePiece(BoardState& boardState, const Board& board, int fromIndex, int toIndex)
 {
         if (!checkLegality(boardState, fromIndex, toIndex))
@@ -598,6 +604,8 @@ void movePiece(BoardState& boardState, const Board& board, int fromIndex, int to
         pawnMoved(boardState, fromIndex, toIndex);
         rookMoved(boardState, fromIndex, toIndex);
         kingMoved(boardState, fromIndex, toIndex);
+
+        addStateToHistory(boardState);
 
         boardState.pieces[toIndex] = boardState.pieces[fromIndex];
         boardState.pieces[fromIndex] = {NONE, false};
@@ -613,4 +621,3 @@ void movePiece(BoardState& boardState, const Board& board, int fromIndex, int to
 
         //printBoardState(boardState);
 }
-
